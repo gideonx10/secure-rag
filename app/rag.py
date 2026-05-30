@@ -103,6 +103,30 @@ def _build_doc_registry() -> dict:
 DOC_REGISTRY = _build_doc_registry()
 print(f"\n{DOC_REGISTRY['display']}\n")
 
+# ── Auto-ingest if vectorstore is empty ──────────────────────────────
+def _ensure_vectorstore():
+    """
+    Auto-ingest if vectorstore is empty.
+    On Azure: downloads PDFs from blob first, then ingests.
+    Locally: PDFs already in data/ folder.
+    """
+    import glob
+    chroma_files = glob.glob(f"{CHROMA_PATH}/**/*", recursive=True)
+    if not chroma_files:
+        print("[Startup] Vectorstore empty — running ingest...")
+        try:
+            from app.ingest import download_pdfs_from_blob, load_pdfs, \
+                                   chunk_documents, build_vectorstore
+            download_pdfs_from_blob()
+            docs   = load_pdfs()
+            chunks = chunk_documents(docs)
+            build_vectorstore(chunks)
+            print("[Startup] Ingest complete.")
+        except Exception as e:
+            print(f"[Startup] Ingest failed: {e}")
+
+_ensure_vectorstore()
+
 # ── Idea 2: Metadata question detector ───────────────────────────────
 # These questions should NEVER go to the LLM — answer from registry
 METADATA_PATTERNS = [

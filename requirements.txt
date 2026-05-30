@@ -21,3 +21,4 @@ httpx
 azure-identity
 azure-keyvault-secrets
 python-multipart
+azure-storage-blob

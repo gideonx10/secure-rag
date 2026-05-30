@@ -11,22 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          python -m spacy download en_core_web_sm
-
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Zip and deploy via Azure CLI
+      - name: Zip and deploy via Azure CLI (no PDFs)
         run: |
           zip -r deploy.zip . \
             --exclude "*.git*" \
@@ -35,7 +25,8 @@ jobs:
             --exclude "__pycache__/*" \
             --exclude "*.pyc" \
             --exclude ".env" \
-            --exclude "publish-profile.xml"
+            --exclude "publish-profile.xml" \
+            --exclude "data/*"
 
           echo "Zip size: $(du -sh deploy.zip)"
 
@@ -51,4 +42,4 @@ jobs:
       - name: Verify deployment
         run: |
           sleep 30
-          curl -f https://secure-rag-app-adi.azurewebsites.net/health || echo "Health check failed"
+          curl https://secure-rag-app-adi.azurewebsites.net/health
