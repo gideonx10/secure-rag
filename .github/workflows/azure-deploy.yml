@@ -16,6 +16,16 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Enable SCM basic auth
+        run: |
+          az resource update \
+            --resource-group secure-rag-rg \
+            --name scm \
+            --namespace Microsoft.Web \
+            --resource-type basicPublishingCredentialsPolicies \
+            --parent sites/secure-rag-app-adi \
+            --set properties.allow=true
+
       - name: Get publishing credentials
         id: creds
         run: |
@@ -42,17 +52,35 @@ jobs:
 
       - name: Deploy via Kudu ZIP API
         run: |
-          curl -X POST \
+          HTTP_CODE=$(curl -s -o /tmp/deploy_response.txt -w "%{http_code}" \
+            -X POST \
             -u "${{ steps.creds.outputs.user }}:${{ steps.creds.outputs.pass }}" \
             -H "Content-Type: application/zip" \
             --data-binary @deploy.zip \
-            "https://secure-rag-app-adi.scm.azurewebsites.net/api/zipdeploy" \
-            -v
+            "https://secure-rag-app-adi.scm.azurewebsites.net/api/zipdeploy?isAsync=false")
+          echo "HTTP response: $HTTP_CODE"
+          cat /tmp/deploy_response.txt
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "204" ]; then
+            echo "Deployment failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
 
-      - name: Restart app
+      - name: Install dependencies on Azure
+        run: |
+          az webapp ssh --name secure-rag-app-adi \
+            --resource-group secure-rag-rg || true
+          az webapp config appsettings set \
+            --name secure-rag-app-adi \
+            --resource-group secure-rag-rg \
+            --settings POST_BUILD_COMMAND="pip install -r /home/site/wwwroot/requirements.txt && python -m spacy download en_core_web_sm"
+
+      - name: Restart and verify
         run: |
           az webapp restart \
             --name secure-rag-app-adi \
             --resource-group secure-rag-rg
-          sleep 30
-          curl https://secure-rag-app-adi.azurewebsites.net/health
+          echo "Waiting for app to start..."
+          sleep 60
+          curl -f https://secure-rag-app-adi.azurewebsites.net/health \
+            && echo "Health check passed!" \
+            || echo "App still starting..."
