@@ -26,15 +26,29 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Stop any stuck deployment
+      - name: Zip and deploy via Azure CLI
         run: |
-          az webapp stop --name secure-rag-app-adi --resource-group secure-rag-rg
-          sleep 10
-          az webapp start --name secure-rag-app-adi --resource-group secure-rag-rg
-          sleep 5
+          zip -r deploy.zip . \
+            --exclude "*.git*" \
+            --exclude "venv/*" \
+            --exclude "vectorstore/*" \
+            --exclude "__pycache__/*" \
+            --exclude "*.pyc" \
+            --exclude ".env" \
+            --exclude "publish-profile.xml"
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: secure-rag-app-adi
-          package: .
+          echo "Zip size: $(du -sh deploy.zip)"
+
+          az webapp deploy \
+            --name secure-rag-app-adi \
+            --resource-group secure-rag-rg \
+            --src-path deploy.zip \
+            --type zip \
+            --timeout 600 \
+            --clean true \
+            --restart true
+
+      - name: Verify deployment
+        run: |
+          sleep 30
+          curl -f https://secure-rag-app-adi.azurewebsites.net/health || echo "Health check failed"
