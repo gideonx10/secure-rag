@@ -1,0 +1,28 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Secrets — NEVER commit
+.env
+
+# Vectorstore — rebuilt at runtime
+vectorstore/
+
+# Deploy artifacts
+deploy.zip
+*.zip
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+tester.py

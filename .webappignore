@@ -1,0 +1,8 @@
+venv/
+vectorstore/
+__pycache__/
+*.pyc
+.env
+deploy.zip
+tester.py
+.git/
