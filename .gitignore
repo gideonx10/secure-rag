@@ -8,6 +8,7 @@ __pycache__/
 
 # Secrets — NEVER commit
 .env
+publish-profile.xml
 
 # Vectorstore — rebuilt at runtime
 vectorstore/
