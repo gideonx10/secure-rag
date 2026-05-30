@@ -16,7 +16,18 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Zip and deploy via Azure CLI (no PDFs)
+      - name: Get publishing credentials
+        id: creds
+        run: |
+          CREDS=$(az webapp deployment list-publishing-credentials \
+            --name secure-rag-app-adi \
+            --resource-group secure-rag-rg \
+            --query "{user:publishingUserName,pass:publishingPassword}" \
+            -o json)
+          echo "user=$(echo $CREDS | jq -r .user)" >> $GITHUB_OUTPUT
+          echo "pass=$(echo $CREDS | jq -r .pass)" >> $GITHUB_OUTPUT
+
+      - name: Create zip
         run: |
           zip -r deploy.zip . \
             --exclude "*.git*" \
@@ -27,19 +38,21 @@ jobs:
             --exclude ".env" \
             --exclude "publish-profile.xml" \
             --exclude "data/*"
-
           echo "Zip size: $(du -sh deploy.zip)"
 
-          az webapp deploy \
-            --name secure-rag-app-adi \
-            --resource-group secure-rag-rg \
-            --src-path deploy.zip \
-            --type zip \
-            --timeout 600 \
-            --clean true \
-            --restart true
-
-      - name: Verify deployment
+      - name: Deploy via Kudu ZIP API
         run: |
+          curl -X POST \
+            -u "${{ steps.creds.outputs.user }}:${{ steps.creds.outputs.pass }}" \
+            -H "Content-Type: application/zip" \
+            --data-binary @deploy.zip \
+            "https://secure-rag-app-adi.scm.azurewebsites.net/api/zipdeploy" \
+            -v
+
+      - name: Restart app
+        run: |
+          az webapp restart \
+            --name secure-rag-app-adi \
+            --resource-group secure-rag-rg
           sleep 30
           curl https://secure-rag-app-adi.azurewebsites.net/health
