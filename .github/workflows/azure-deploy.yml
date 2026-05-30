@@ -26,6 +26,13 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Stop any stuck deployment
+        run: |
+          az webapp stop --name secure-rag-app-adi --resource-group secure-rag-rg
+          sleep 10
+          az webapp start --name secure-rag-app-adi --resource-group secure-rag-rg
+          sleep 5
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
