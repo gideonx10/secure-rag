@@ -1,4 +1,4 @@
-# Secure RAG Service — Clustral AI Security Assessment
+# Secure RAG Service
 
 ## Architecture
 
